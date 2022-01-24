@@ -15,7 +15,7 @@ Instance Preprocessor::UnsatInst() {
 	ins.AddClause({PosLit(1)});
 	if (weighted) {
 		ins.weighted = true;
-		ins.weights = {0, 0, 0.5, 0.5};
+		ins.weights = {{0}, {0}, {0.5}, {0.5}};
 	}
 	return ins;
 }
@@ -77,6 +77,7 @@ void Preprocessor::TakeUnits(vector<vector<Lit>>& cls) {
 			unsat = true;
 			return;
 		}
+		/*
 		if (clause.size() == 1) {
 			Var v = var_map[VarOf(clause[0])];
 			if (assign[v] == 1) {
@@ -100,16 +101,18 @@ void Preprocessor::TakeUnits(vector<vector<Lit>>& cls) {
 			i--;
 			continue;
 		}
+		*/
+
 	}
 }
 
-void Preprocessor::Tighten(bool loop) {
+void Preprocessor::Tighten() {
 	SortAndDedup(clauses);
 	SortAndDedup(learned_clauses);
 	TakeUnits(clauses);
 	TakeUnits(learned_clauses);
 	if (unsat) return;
-	Var nvars = 0;
+	/*Var nvars = 0;
 	vector<Var> map_to(vars+1);
 	MapClauses(clauses, nvars, map_to);
 	MapClauses(learned_clauses, nvars, map_to);
@@ -122,8 +125,9 @@ void Preprocessor::Tighten(bool loop) {
 			new_var_map[map_to[v]] = var_map[v];
 		}
 	}
-	var_map = new_var_map;
-	vars = nvars;
+	//var_map = new_var_map;
+	//vars = nvars; //isn't nvars always 0 at this point?
+
 	bool unit = false;
 	for (const auto& clause : clauses) {
 		assert(IsClause(clause));
@@ -145,7 +149,7 @@ void Preprocessor::Tighten(bool loop) {
 	}
 	if (unit && loop) {
 		Tighten(loop);
-	}
+	}*/
 }
 
 Instance Preprocessor::Preprocess(Instance inst, const string& techniques) {
@@ -162,7 +166,7 @@ void Preprocessor::FailedLiterals() {
 			clauses.push_back({Neg(lit)});
 		}
 	}
-	Tighten(false);
+	Tighten();
 	Subsume();
 }
 
@@ -213,7 +217,7 @@ void Preprocessor::PropStren() {
 			}
 		}
 	}
-	Tighten(false);
+	Tighten();
 	Subsume();
 }
 
@@ -254,7 +258,7 @@ void Preprocessor::BackBone() {
 	for (const auto& clause : oracle.LearnedClauses()) {
 		learned_clauses.push_back(clause);
 	}
-	Tighten(false);
+	Tighten();
 	Subsume();
 }
 
@@ -263,17 +267,18 @@ Instance Preprocessor::MapBack() {
 	assert(var_map.size() == (size_t)vars+1);
 	Instance ret(vars);
 	for (const auto& clause : clauses) {
-		assert(clause.size() >= 2);
+		//assert(clause.size() >= 2);
 		ret.AddClause(clause);
 	}
 	for (const auto& clause : learned_clauses) {
-		assert(clause.size() >= 2);
+		//assert(clause.size() >= 2);
 		ret.AddLearnedClause(clause);
 	}
 	free_vars = orig_vars - vars;
 	for (Var v = 1; v <= orig_vars; v++) {
 		if (assign[v]) {
 			free_vars--;
+			cout << "assigned: " << v << endl;
 		}
 	}
 	if (weighted) {
@@ -301,23 +306,25 @@ Instance Preprocessor::MapBack() {
 			if (assign[v]) {
 				assert(!used[v]);
 				if (assign[v] == 1) {
-					ret.weight_factor *= weights[PosLit(v)];
+					//ret.weight_factor *= weights[PosLit(v)];
 				} else if (assign[v] == 2) {
-					ret.weight_factor *= weights[NegLit(v)];
+					//ret.weight_factor *= weights[NegLit(v)];
 				} else {
 					assert(0);
 				}
 			} else if (!used[v]) {
-				ret.weight_factor *= (weights[PosLit(v)] + weights[NegLit(v)]);
+				//ret.weight_factor *= (weights[PosLit(v)] + weights[NegLit(v)]);
 			}
 		}
 	}
 	ret.UpdClauseInfo();
+	cout << "weight factor: " << ret.weight_factor << endl;
 	return ret;
 }
 
 void Preprocessor::Sparsify() {
 	s_timer.start();
+	// how many times any two variables cooccur in a clause
 	vector<vector<int>> edgew(vars+1);
 	for (Var i = 1; i <= vars; i++) {
 		edgew[i].resize(vars+1);
@@ -334,6 +341,7 @@ void Preprocessor::Sparsify() {
 			}
 		}
 	}
+	// - (how many variable pairs with edgew[v1][v2] = k are in each clause)
 	vector<pair<vector<int>, vector<Lit>>> cs;
 	for (const auto& clause : clauses) {
 		vector<int> ww;
@@ -352,6 +360,7 @@ void Preprocessor::Sparsify() {
 		}
 		cs.push_back({ww, clause});
 	}
+	// put clauses with the highest number of low cooccurrences first (lexicographically)
 	sort(cs.begin(), cs.end());
 	assert(cs.size() == clauses.size());
 	for (int i = 0; i < (int)clauses.size(); i++) {
@@ -400,6 +409,7 @@ void Preprocessor::eqdfs(Lit lit, Lit e, const vector<vector<Lit>>& eq, vector<L
 }
 
 void Preprocessor::MergeAdjEquivs() {
+	// which variables cooccur in a clause
 	vector<vector<char>> pg(vars+1);
 	for (Var v = 1; v <= vars; v++) {
 		pg[v].resize(vars+1);
@@ -415,6 +425,8 @@ void Preprocessor::MergeAdjEquivs() {
 			}
 		}
 	}
+	// which literal is equivalent to which other ones
+	// with a bigger index cooccurring in some claues
 	Oracle oracle(vars, clauses, learned_clauses);
 	vector<vector<Lit>> eq(vars*2+2);
 	for (Var v1 = 1; v1 <= vars; v1++) {
@@ -433,6 +445,7 @@ void Preprocessor::MergeAdjEquivs() {
 			}
 		}
 	}
+	// find the complete equivalence classes
 	int eq_classes = 0;
 	vector<Lit> eqc(vars*2+2);
 	for (Var v = 1; v <= vars; v++) {
@@ -451,6 +464,10 @@ void Preprocessor::MergeAdjEquivs() {
 		SortAndDedup(clauses[i]);
 		bool taut = false;
 		for (int j = 1; j < (int)clauses[i].size(); j++) {
+			// because we applied SortAndDedup this means that
+			// having the same variable twice then one occurrence is negated
+			// due to sorting and encoding of literals as ints
+			// literals with the same variable are adjacent
 			if (VarOf(clauses[i][j]) == VarOf(clauses[i][j-1])) {
 				taut = true;
 			}
@@ -482,8 +499,11 @@ bool Preprocessor::EliminateDefSimplicial() {
 	bool found = false;
 	while (true) {
 		int simps = 0;
+		// extra variables that will be used to determine whether a variable is defined
 		vector<Var> extra(vars+1);
 		for (Var v = 1; v <= vars; v++) {
+			// we will only consider eliminating variables
+			// that are in the same bag of the tree decomposition as their neighbors
 			if (!graph.Neighbors(v).empty() && graph.IsSimp(v)) {
 				int poss = 0;
 				int negs = 0;
@@ -496,15 +516,20 @@ bool Preprocessor::EliminateDefSimplicial() {
 					}
 				}
 				// TODO magic constant 4
+				// furthermore we limit ourselves to those variables that
+				// occur a bounded number of time for some phase
+				// in order to be sure that the number of resolvents does not explode
 				if (min(poss, negs) <= 4) {
 					simps++;
 					extra[v] = vars + simps;
 				}
 			}
 		}
+		// there are no variables left to elminate currently
 		if (simps == 0) {
-			Tighten(true);
+			Tighten();
 			Subsume();
+			// if we eliminated some variables we might find more when we try again
 			if (found && g_timer.get() < max_g_time) {
 				EliminateDefSimplicial();
 				return true;
@@ -513,16 +538,20 @@ bool Preprocessor::EliminateDefSimplicial() {
 				return false;
 			}
 		}
+		// initialize the oracle that will check whether variables are defined
 		Oracle oracle(vars + 2*simps, {});
 		for (const auto& cls : {clauses, learned_clauses}) {
 			for (const auto& clause : cls) {
 				oracle.AddClause(clause, false);
+				// check if the clause contains a variable that we might want to eliminate
 				bool hs = false;
 				for (Lit lit : clause) {
 					if (extra[VarOf(lit)]) {
 						hs = true;
 					}
 				}
+				// if so add a copy of the clause with the possibly defined variables
+				// replaced by their corresponding extra variables
 				if (hs) {
 					vector<Lit> ac;
 					for (Lit lit : clause) {
@@ -537,6 +566,8 @@ bool Preprocessor::EliminateDefSimplicial() {
 				}
 			}
 		}
+		// add clauses that allow us to turn equivalences between the original
+		// variables and the extra variables on and off
 		for (Var v = 1; v <= vars; v++) {
 			if (extra[v]) {
 				oracle.AddClause({PosLit(v), NegLit(extra[v]), NegLit(extra[v]+simps)}, false);
@@ -545,26 +576,37 @@ bool Preprocessor::EliminateDefSimplicial() {
 		}
 		vector<char> def(vars+1);
 		int defs = 0;
+		// iterate over all the variables and check whether they are defined
 		for (Var v = 1; v <= vars; v++) {
-			if (extra[v] && g_timer.get() < max_g_time) {
-				vector<Lit> assumps = {PosLit(v), NegLit(extra[v])};
-				for (Var tv = 1; tv <= vars; tv++) {
-					if (extra[tv] && tv != v && !def[tv]) {
-						assumps.push_back(PosLit(extra[tv]+simps));
-					}
-				}
-				if (!oracle.Solve(assumps)) {
-					def[v] = 1;
-					defs++;
-				}
-			}
+            if (weights[PosLit(v)] == weights[NegLit(v)]) {
+                if (extra[v] && g_timer.get() < max_g_time) {
+                    vector<Lit> assumps = {PosLit(v), NegLit(extra[v])};
+                    // for the other variables that might be defined
+                    // but have not yet been shown to be defined
+                    // we turn on the switch that makes them and their extra equivalent
+                    for (Var tv = 1; tv <= vars; tv++) {
+                        if (extra[tv] && tv != v && !def[tv]) {
+                            assumps.push_back(PosLit(extra[tv]+simps));
+                        }
+                    }
+                    if (!oracle.Solve(assumps)) {
+                        def[v] = 1;
+                        defs++;
+                    }
+                }
+            }
 		}
+		// iterate over all the defined variables
 		for (Var v = 1; v <= vars; v++) {
 			if (def[v]) {
+                //std::cout << "defined: " << v << std::endl;
 				auto nbs = graph.Neighbors(v);
 				graph.RemoveEdgesBetween(v, nbs);
 				vector<vector<Lit>> pos;
 				vector<vector<Lit>> neg;
+				// remove all clauses that contain v or its complement
+				// and group them in pos and neg depending on whether
+				// they contain v or its complement respectively
 				for (int i = 0; i < (int)clauses.size(); i++) {
 					for (int j = 0; j < (int)clauses[i].size(); j++) {
 						if (VarOf(clauses[i][j]) == v) {
@@ -582,6 +624,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 						}
 					}
 				}
+				// generate all the resolvents and add them to the clause set
 				assert(min(pos.size(), neg.size()) >= 1);
 				for (const auto& c1 : pos) {
 					for (const auto& c2 : neg) {
@@ -618,6 +661,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 				clauses.push_back({PosLit(v)});
 			}
 		}
+		// remove all the learned clauses that contain an eliminated literal
 		for (int i = 0; i < (int)learned_clauses.size(); i++) {
 			bool fo = false;
 			for (Lit lit : learned_clauses[i]) {
@@ -633,7 +677,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 		}
 		Subsume();
 		if (!defs) {
-			Tighten(true);
+			Tighten();
 			if (found && g_timer.get() < max_g_time) {
 				EliminateDefSimplicial();
 				return true;
@@ -644,7 +688,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 		}
 		found = true;
 	}
-	g_timer.stop();
+	g_timer.stop(); //line unreachable?
 }
 
 bool Preprocessor::DoTechniques(const string& techniques, int l, int r) {
@@ -716,7 +760,7 @@ Instance Preprocessor::Preprocess(int vars_, vector<vector<Lit>> clauses_, strin
 	for (Var v = 1; v <= vars; v++) {
 		var_map[v] = v;
 	}
-	Tighten(false);
+	Tighten();
 	cout<<"c o Init PP "<<vars<<" "<<clauses.size()<<" "<<timer.get()<<endl;
 	DoTechniques(techniques, 0, (int)techniques.size()-1);
 	return MapBack();

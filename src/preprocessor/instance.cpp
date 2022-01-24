@@ -2,6 +2,8 @@
 #include <fstream>
 #include <cctype>
 #include <iomanip>
+#include <sstream>
+#include <iostream>
 
 #include "instance.hpp"
 #include "utils.hpp"
@@ -110,11 +112,23 @@ Instance::Instance(string input_file, bool weighted_) {
 		} else if (weighted && format == 1 && tokens.size() == 6 && tokens[0] == "c" && tokens[1] == "p" && tokens[2] == "weight") {
 			assert(IsInt(tokens[3], -vars, vars));
 			int dlit = stoi(tokens[3]);
-			double w = stod(tokens[4]);
 			assert(dlit != 0);
 			Lit lit = FromDimacs(dlit);
-			weights[lit] = w;
-			weights[Neg(lit)] = (double)1-w;
+			/*int weight_dim = 10;
+			if (weights[0].size() == 0) {
+                for (int i = 0; i < weights.size(); i++){
+                    weights[i].resize(weight_dim);
+                }
+            }*/
+            vector<double> ws;
+            std::istringstream ss(tokens[4]);
+            string w;
+            while(std::getline(ss, w, ';')) {
+                ws.push_back(stod(w));
+            }
+            weights[lit] = ws;
+
+			//weights[Neg(lit)] = (double)1-w;
 			read_weights++;
 		} else if (tokens[0] == "c") {
 			continue;
@@ -124,9 +138,9 @@ Instance::Instance(string input_file, bool weighted_) {
 			pline_clauses = stoi(tokens[3]);
 			if (weighted) {
 				weights.resize(vars*2+2);
-				for (int i = 0; i < (int)vars*2+2; i++) {
-					weights[i] = 1;
-				}
+				//for (int i = 0; i < (int)vars*2+2; i++) {
+				//	weights[i] = 1;
+				//}
 			}
 		} else if (format == 1 && IsInt(tokens[0])) {
 			for (string& t : tokens) {
@@ -143,16 +157,7 @@ Instance::Instance(string input_file, bool weighted_) {
 			}
 		}
 	}
-	if (weighted) {
-		for (int v = 1; v <= vars; v++) {
-			if (weights[PosLit(v)] == 0) {
-				AddClause({NegLit(v)});
-			}
-			if (weights[NegLit(v)] == 0) {
-				AddClause({PosLit(v)});
-			}
-		}
-	}
+
 	assert(format == 1);
 	assert(cur_clause.empty());
 	if (pline_clauses != read_clauses) {
@@ -179,6 +184,13 @@ void Instance::Print(std::ostream& out) const {
 		}
 		out<<0<<endl;
 	}
+    for (int i = 2; i < weights.size(); i++) {
+        out << "c p weight " << (i%2==0?"":"-") << i/2 << " " << weights[i][0];
+        for (int j = 1; j < weights[i].size(); j++) {
+            out << ";" << weights[i][j];
+        }
+        out << " 0" << endl;
+    }
 }
 
 void Instance::Eliminate(Var var) {
