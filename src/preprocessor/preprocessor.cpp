@@ -159,6 +159,7 @@ Instance Preprocessor::Preprocess(Instance inst, const string& techniques) {
 }
 
 void Preprocessor::FailedLiterals() {
+    std::cout << "executing F" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	for (Lit lit = 2; lit <= vars*2+1; lit++) {
 		if (oracle.FalseByProp({lit})) {
@@ -198,6 +199,7 @@ int Preprocessor::FreeVars() const {
 }
 
 void Preprocessor::PropStren() {
+    std::cout << "executing P" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool found = true;
 	while (found) {
@@ -222,6 +224,7 @@ void Preprocessor::PropStren() {
 }
 
 void Preprocessor::BackBone() {
+    std::cout << "executing V" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool sat = false;
 	for (int i = 0; i < (int)clauses.size(); i++) {
@@ -323,6 +326,7 @@ Instance Preprocessor::MapBack() {
 }
 
 void Preprocessor::Sparsify() {
+    std::cout << "executing S" << std::endl;
 	s_timer.start();
 	// how many times any two variables cooccur in a clause
 	vector<vector<int>> edgew(vars+1);
@@ -409,6 +413,7 @@ void Preprocessor::eqdfs(Lit lit, Lit e, const vector<vector<Lit>>& eq, vector<L
 }
 
 void Preprocessor::MergeAdjEquivs() {
+    std::cout << "executing E" << std::endl;
 	// which variables cooccur in a clause
 	vector<vector<char>> pg(vars+1);
 	for (Var v = 1; v <= vars; v++) {
@@ -492,6 +497,7 @@ void Preprocessor::MergeAdjEquivs() {
 }
 
 bool Preprocessor::EliminateDefSimplicial() {
+    std::cout << "executing G" << std::endl;
 	g_timer.start();
 	Graph graph(vars, clauses);
 	TWPP twpp;

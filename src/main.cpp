@@ -75,6 +75,7 @@ void PrintDouble(double num) {
 int main(int argc, char *argv[]) {
     bool idemp_mode = false;
     string input_file;
+    string techniques = "G";
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-m") == 0) {
             if (argc <= i + 1) {
@@ -88,6 +89,16 @@ int main(int argc, char *argv[]) {
                     cout << " mode not recognized" << endl;
                     return -1;
                 }
+                i++;
+            }
+        }
+        else if (strcmp(argv[i], "-t") == 0) {
+            if (argc <= i + 1) {
+                cout << " wrong parameters" << endl;
+                return -1;
+            } else {
+                techniques = argv[i+1];
+                i++;
             }
         }
         else {
@@ -96,10 +107,10 @@ int main(int argc, char *argv[]) {
     }
     sspp::Instance ins(input_file, true);
     sspp::Preprocessor ppp;
-    ins = ppp.Preprocess(ins, "G");
+    ins = ppp.Preprocess(ins, techniques);
     ins.UpdClauseInfo();
     cout<<"c o Preprocessed. Vars: "<<ins.vars<<" Clauses: "<<ins.clauses.size()<<" Free vars: "<<ppp.FreeVars()<<endl;
-    //ins.Print(cout);
+    ins.Print(cout);
     return 0;
 }
 
