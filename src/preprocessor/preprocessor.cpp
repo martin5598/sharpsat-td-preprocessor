@@ -67,7 +67,7 @@ void Preprocessor::MapClauses(vector<vector<Lit>>& cls, Var& nvars, vector<Var>&
 	}
 }
 
-void Preprocessor::TakeUnits(vector<vector<Lit>>& cls) {
+void Preprocessor::EmptyClauseCheck(vector<vector<Lit>>& cls) {
 	for (int i = 0; i < (int)cls.size(); i++) {
 		const auto& clause = cls[i];
 		for (int j = 1; j < (int)clause.size(); j++) {
@@ -109,8 +109,8 @@ void Preprocessor::TakeUnits(vector<vector<Lit>>& cls) {
 void Preprocessor::Tighten() {
 	SortAndDedup(clauses);
 	SortAndDedup(learned_clauses);
-	TakeUnits(clauses);
-	TakeUnits(learned_clauses);
+	EmptyClauseCheck(clauses);
+	EmptyClauseCheck(learned_clauses);
 	if (unsat) return;
 	/*Var nvars = 0;
 	vector<Var> map_to(vars+1);
@@ -580,15 +580,15 @@ bool Preprocessor::EliminateDefSimplicial() {
 				oracle.AddClause({NegLit(v), PosLit(extra[v]), NegLit(extra[v]+simps)}, false);
 			}
 		}
-		vector<char> def(vars+1);
-		int defs = 0;
-		// iterate over all the variables and check whether they are defined
+		vector<char> toEliminate(vars+1);
+		int nToEliminate = 0;
+		// iterate over all the variables and check whether they are to be eliminated
 		for (Var v = 1; v <= vars; v++) {
             if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v]) {
                 if (idemp_mode) {
                     //std::cout << "added to defined variables (idemp_mode): " << v << std::endl;
-                    def[v] = 1;
-                    defs++;
+                    toEliminate[v] = 1;
+                    nToEliminate++;
                 }
                 else if (g_timer.get() < max_g_time) {
                     vector<Lit> assumps = {PosLit(v), NegLit(extra[v])};
@@ -596,21 +596,21 @@ bool Preprocessor::EliminateDefSimplicial() {
                     // but have not yet been shown to be defined
                     // we turn on the switch that makes them and their extra equivalent
                     for (Var tv = 1; tv <= vars; tv++) {
-                        if (extra[tv] && tv != v && !def[tv]) {
+                        if (extra[tv] && tv != v && !toEliminate[tv]) {
                             assumps.push_back(PosLit(extra[tv]+simps));
                         }
                     }
                     if (!oracle.Solve(assumps)) {
                         //std::cout << "added to defined variables: " << v << std::endl;
-                        def[v] = 1;
-                        defs++;
+                        toEliminate[v] = 1;
+                        nToEliminate++;
                     }
                 }
             }
 		}
 		// iterate over all the defined variables
 		for (Var v = 1; v <= vars; v++) {
-			if (def[v]) {
+			if (toEliminate[v]) {
                 //std::cout << "defined: " << v << std::endl;
 				auto nbs = graph.Neighbors(v);
 				graph.RemoveEdgesBetween(v, nbs);
@@ -686,8 +686,8 @@ bool Preprocessor::EliminateDefSimplicial() {
                 }
                 else {
                     //std::cout << "removed from defined vars: " << v << std::endl;
-                    def[v] = 0;
-                    defs--;
+                    toEliminate[v] = 0;
+                    nToEliminate--;
                     //std::cout << "new def count: " << defs << std::endl;
                 }
 			}
@@ -699,7 +699,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 		for (int i = 0; i < (int)learned_clauses.size(); i++) {
 			bool fo = false;
 			for (Lit lit : learned_clauses[i]) {
-				if (def[VarOf(lit)]) {
+				if (toEliminate[VarOf(lit)]) {
 					fo = true;
 					break;
 				}
@@ -710,7 +710,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 			}
 		}
 		Subsume();
-		if (!defs) {
+		if (!nToEliminate) {
 			Tighten();
 			if (found && g_timer.get() < max_g_time) {
                 //std::cout << "going into recursion" << std::endl;

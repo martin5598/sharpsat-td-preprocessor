@@ -45,9 +45,8 @@ class Preprocessor {
 	// check for backbone literals by checking if ins && l is unsat
 	// uses unit propagation and applies tightening and subsuming afterwards
  	void FailedLiterals();
-	// removes all the unit clauses
-	// and remembers the value of the backbone literal in assign
- 	void TakeUnits(vector<vector<Lit>>& cls);
+	// checks if there are empty clauses
+ 	void EmptyClauseCheck(vector<vector<Lit>>& cls);
 	// ensures that the variable indices do not have holes
 	// and simplifies away the backbone literals
  	void MapClauses(vector<vector<Lit>>& cls, Var& nvars, vector<Var>& map_to);
