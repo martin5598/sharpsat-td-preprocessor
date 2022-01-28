@@ -114,12 +114,6 @@ Instance::Instance(string input_file, bool weighted_) {
 			int dlit = stoi(tokens[3]);
 			assert(dlit != 0);
 			Lit lit = FromDimacs(dlit);
-			/*int weight_dim = 10;
-			if (weights[0].size() == 0) {
-                for (int i = 0; i < weights.size(); i++){
-                    weights[i].resize(weight_dim);
-                }
-            }*/
             vector<double> ws;
             std::istringstream ss(tokens[4]);
             string w;
@@ -128,7 +122,6 @@ Instance::Instance(string input_file, bool weighted_) {
             }
             weights[lit] = ws;
 
-			//weights[Neg(lit)] = (double)1-w;
 			read_weights++;
 		} else if (tokens[0] == "c") {
 			continue;
@@ -138,9 +131,7 @@ Instance::Instance(string input_file, bool weighted_) {
 			pline_clauses = stoi(tokens[3]);
 			if (weighted) {
 				weights.resize(vars*2+2);
-				//for (int i = 0; i < (int)vars*2+2; i++) {
-				//	weights[i] = 1;
-				//}
+
 			}
 		} else if (format == 1 && IsInt(tokens[0])) {
 			for (string& t : tokens) {

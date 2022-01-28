@@ -77,31 +77,7 @@ void Preprocessor::EmptyClauseCheck(vector<vector<Lit>>& cls) {
 			unsat = true;
 			return;
 		}
-		/*
-		if (clause.size() == 1) {
-			Var v = var_map[VarOf(clause[0])];
-			if (assign[v] == 1) {
-				if (IsNeg(clause[0])) {
-					unsat = true;
-					return;
-				}
-			} else if (assign[v] == 2) {
-				if (IsPos(clause[0])) {
-					unsat = true;
-					return;
-				}
-			} else {
-				if (IsPos(clause[0])) {
-					assign[v] = 1;
-				} else {
-					assign[v] = 2;
-				}
-			}
-			SwapDel(cls, i);
-			i--;
-			continue;
-		}
-		*/
+
 
 	}
 }
@@ -112,44 +88,6 @@ void Preprocessor::Tighten() {
 	EmptyClauseCheck(clauses);
 	EmptyClauseCheck(learned_clauses);
 	if (unsat) return;
-	/*Var nvars = 0;
-	vector<Var> map_to(vars+1);
-	MapClauses(clauses, nvars, map_to);
-	MapClauses(learned_clauses, nvars, map_to);
-	if (unsat) return;
-	assert(nvars <= vars);
-	vector<Var> new_var_map(nvars+1);
-	for (Var v = 1; v <= vars; v++){
-		if (map_to[v]) {
-			assert(map_to[v] <= nvars);
-			new_var_map[map_to[v]] = var_map[v];
-		}
-	}
-	//var_map = new_var_map;
-	//vars = nvars; //isn't nvars always 0 at this point?
-
-	bool unit = false;
-	for (const auto& clause : clauses) {
-		assert(IsClause(clause));
-		if (clause.size() == 1) {
-			unit = true;
-		}
-		for (Lit lit : clause) {
-			assert(lit >= 2 && VarOf(lit) <= vars);
-		}
-	}
-	for (const auto& clause : learned_clauses) {
-		assert(IsClause(clause));
-		if (clause.size() == 1) {
-			unit = true;
-		}
-		for (Lit lit : clause) {
-			assert(lit >= 2 && VarOf(lit) <= vars);
-		}
-	}
-	if (unit && loop) {
-		Tighten(loop);
-	}*/
 }
 
 Instance Preprocessor::Preprocess(Instance inst, const string& techniques, bool idemp_mode_) {
@@ -159,7 +97,6 @@ Instance Preprocessor::Preprocess(Instance inst, const string& techniques, bool 
 }
 
 void Preprocessor::FailedLiterals() {
-    //std::cout << "executing F" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	for (Lit lit = 2; lit <= vars*2+1; lit++) {
 		if (oracle.FalseByProp({lit})) {
@@ -199,7 +136,6 @@ int Preprocessor::FreeVars() const {
 }
 
 void Preprocessor::PropStren() {
-    //std::cout << "executing P" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool found = true;
 	while (found) {
@@ -224,7 +160,6 @@ void Preprocessor::PropStren() {
 }
 
 void Preprocessor::BackBone() {
-    //std::cout << "executing V" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool sat = false;
 	for (int i = 0; i < (int)clauses.size(); i++) {
@@ -305,28 +240,12 @@ Instance Preprocessor::MapBack() {
 				used[v] = true;
 			}
 		}
-		for (Var v = 1; v <= orig_vars; v++) {
-			if (assign[v]) {
-				assert(!used[v]);
-				if (assign[v] == 1) {
-					//ret.weight_factor *= weights[PosLit(v)];
-				} else if (assign[v] == 2) {
-					//ret.weight_factor *= weights[NegLit(v)];
-				} else {
-					assert(0);
-				}
-			} else if (!used[v]) {
-				//ret.weight_factor *= (weights[PosLit(v)] + weights[NegLit(v)]);
-			}
-		}
 	}
 	ret.UpdClauseInfo();
-	//cout << "weight factor: " << ret.weight_factor << endl;
 	return ret;
 }
 
 void Preprocessor::Sparsify() {
-    //std::cout << "executing S" << std::endl;
 	s_timer.start();
 	// how many times any two variables cooccur in a clause
 	vector<vector<int>> edgew(vars+1);
@@ -413,7 +332,6 @@ void Preprocessor::eqdfs(Lit lit, Lit e, const vector<vector<Lit>>& eq, vector<L
 }
 
 void Preprocessor::MergeAdjEquivs() {
-    //std::cout << "executing E" << std::endl;
 	// which variables cooccur in a clause
 	vector<vector<char>> pg(vars+1);
 	for (Var v = 1; v <= vars; v++) {
@@ -586,7 +504,6 @@ bool Preprocessor::EliminateDefSimplicial() {
 		for (Var v = 1; v <= vars; v++) {
             if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v]) {
                 if (idemp_mode) {
-                    //std::cout << "added to defined variables (idemp_mode): " << v << std::endl;
                     toEliminate[v] = 1;
                     nToEliminate++;
                 }
@@ -601,7 +518,6 @@ bool Preprocessor::EliminateDefSimplicial() {
                         }
                     }
                     if (!oracle.Solve(assumps)) {
-                        //std::cout << "added to defined variables: " << v << std::endl;
                         toEliminate[v] = 1;
                         nToEliminate++;
                     }
@@ -611,7 +527,6 @@ bool Preprocessor::EliminateDefSimplicial() {
 		// iterate over all the defined variables
 		for (Var v = 1; v <= vars; v++) {
 			if (toEliminate[v]) {
-                //std::cout << "defined: " << v << std::endl;
 				auto nbs = graph.Neighbors(v);
 				graph.RemoveEdgesBetween(v, nbs);
 				vector<vector<Lit>> pos;
@@ -636,10 +551,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 						}
 					}
 				}
-				//sspp::Instance ins(vars, clauses);
-				//ins.Print(std::cout);
 				// generate all the resolvents and add them to the clause set
-				//std::cout << "entering removal process wit " << pos.size() << " positive and " << neg.size() << " negative clauses"<< std::endl;
 				if (min(pos.size(), neg.size()) >= 1) {
                     for (const auto& c1 : pos) {
                         for (const auto& c2 : neg) {
@@ -668,31 +580,25 @@ bool Preprocessor::EliminateDefSimplicial() {
                             while (j < (int)c2.size() && !taut) {
                                 res.push_back(c2[j]);
                                 j++;
-                                //std::cout << "second while loop: " << j << std::endl;
 
                             }
                             if (!taut) {
                                 assert(IsClause(res));
                                 clauses.push_back(res);
                             }
-                            //std::cout << "for loop" << std::endl;
 
                         }
                     }
                     clauses.push_back({PosLit(v)});
-                    //std::cout << "eliminated variable: " << v << std::endl;
                     SortAndDedup(clauses);
 
                 }
                 else {
-                    //std::cout << "removed from defined vars: " << v << std::endl;
                     toEliminate[v] = 0;
                     nToEliminate--;
-                    //std::cout << "new def count: " << defs << std::endl;
                 }
 			}
 		}
-		//std::cout << "removed defined variables" << std::endl;
 
 
 		// remove all the learned clauses that contain an eliminated literal
@@ -713,7 +619,6 @@ bool Preprocessor::EliminateDefSimplicial() {
 		if (!nToEliminate) {
 			Tighten();
 			if (found && g_timer.get() < max_g_time) {
-                //std::cout << "going into recursion" << std::endl;
 				EliminateDefSimplicial();
 				return true;
 			} else {
