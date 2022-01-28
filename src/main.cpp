@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
     }
     sspp::Instance ins(input_file, true);
     sspp::Preprocessor ppp;
-    ins = ppp.Preprocess(ins, techniques);
+    ins = ppp.Preprocess(ins, techniques, idemp_mode);
     ins.UpdClauseInfo();
     cout<<"c o Preprocessed. Vars: "<<ins.vars<<" Clauses: "<<ins.clauses.size()<<" Free vars: "<<ppp.FreeVars()<<endl;
     ins.Print(cout);

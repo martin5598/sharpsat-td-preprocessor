@@ -152,14 +152,14 @@ void Preprocessor::Tighten() {
 	}*/
 }
 
-Instance Preprocessor::Preprocess(Instance inst, const string& techniques) {
+Instance Preprocessor::Preprocess(Instance inst, const string& techniques, bool idemp_mode_) {
 	weighted = inst.weighted;
 	weights = inst.weights;
-	return Preprocess(inst.vars, inst.clauses, techniques);
+	return Preprocess(inst.vars, inst.clauses, techniques, idemp_mode_);
 }
 
 void Preprocessor::FailedLiterals() {
-    std::cout << "executing F" << std::endl;
+    //std::cout << "executing F" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	for (Lit lit = 2; lit <= vars*2+1; lit++) {
 		if (oracle.FalseByProp({lit})) {
@@ -199,7 +199,7 @@ int Preprocessor::FreeVars() const {
 }
 
 void Preprocessor::PropStren() {
-    std::cout << "executing P" << std::endl;
+    //std::cout << "executing P" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool found = true;
 	while (found) {
@@ -224,7 +224,7 @@ void Preprocessor::PropStren() {
 }
 
 void Preprocessor::BackBone() {
-    std::cout << "executing V" << std::endl;
+    //std::cout << "executing V" << std::endl;
 	Oracle oracle(vars, clauses, learned_clauses);
 	bool sat = false;
 	for (int i = 0; i < (int)clauses.size(); i++) {
@@ -321,12 +321,12 @@ Instance Preprocessor::MapBack() {
 		}
 	}
 	ret.UpdClauseInfo();
-	cout << "weight factor: " << ret.weight_factor << endl;
+	//cout << "weight factor: " << ret.weight_factor << endl;
 	return ret;
 }
 
 void Preprocessor::Sparsify() {
-    std::cout << "executing S" << std::endl;
+    //std::cout << "executing S" << std::endl;
 	s_timer.start();
 	// how many times any two variables cooccur in a clause
 	vector<vector<int>> edgew(vars+1);
@@ -413,7 +413,7 @@ void Preprocessor::eqdfs(Lit lit, Lit e, const vector<vector<Lit>>& eq, vector<L
 }
 
 void Preprocessor::MergeAdjEquivs() {
-    std::cout << "executing E" << std::endl;
+    //std::cout << "executing E" << std::endl;
 	// which variables cooccur in a clause
 	vector<vector<char>> pg(vars+1);
 	for (Var v = 1; v <= vars; v++) {
@@ -497,7 +497,7 @@ void Preprocessor::MergeAdjEquivs() {
 }
 
 bool Preprocessor::EliminateDefSimplicial() {
-    std::cout << "executing G" << std::endl;
+    //std::cout << "executing G" << std::endl;
 	g_timer.start();
 	Graph graph(vars, clauses);
 	TWPP twpp;
@@ -584,8 +584,13 @@ bool Preprocessor::EliminateDefSimplicial() {
 		int defs = 0;
 		// iterate over all the variables and check whether they are defined
 		for (Var v = 1; v <= vars; v++) {
-            if (weights[PosLit(v)] == weights[NegLit(v)]) {
-                if (extra[v] && g_timer.get() < max_g_time) {
+            if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v]) {
+                if (idemp_mode) {
+                    //std::cout << "added to defined variables (idemp_mode): " << v << std::endl;
+                    def[v] = 1;
+                    defs++;
+                }
+                else if (g_timer.get() < max_g_time) {
                     vector<Lit> assumps = {PosLit(v), NegLit(extra[v])};
                     // for the other variables that might be defined
                     // but have not yet been shown to be defined
@@ -596,6 +601,7 @@ bool Preprocessor::EliminateDefSimplicial() {
                         }
                     }
                     if (!oracle.Solve(assumps)) {
+                        //std::cout << "added to defined variables: " << v << std::endl;
                         def[v] = 1;
                         defs++;
                     }
@@ -630,43 +636,65 @@ bool Preprocessor::EliminateDefSimplicial() {
 						}
 					}
 				}
+				//sspp::Instance ins(vars, clauses);
+				//ins.Print(std::cout);
 				// generate all the resolvents and add them to the clause set
-				assert(min(pos.size(), neg.size()) >= 1);
-				for (const auto& c1 : pos) {
-					for (const auto& c2 : neg) {
-						vector<Lit> res;
-						bool taut = false;
-						int j = 0;
-						for (int i = 0; i < (int)c1.size(); i++) {
-							while (j < (int)c2.size() && VarOf(c2[j]) < VarOf(c1[i])) {
-								res.push_back(c2[j]);
-								j++;
-							}
-							if (j < (int)c2.size() && VarOf(c2[j]) == VarOf(c1[i])) {
-								if (c2[j] == c1[i]) {
-									res.push_back(c1[i]);
-									j++;
-								} else {
-									taut = true;
-									break;
-								}
-							} else {
-								res.push_back(c1[i]);
-							}
-						}
-						while (j < (int)c2.size() && !taut) {
-							res.push_back(c2[j]);
-							j++;
-						}
-						if (!taut) {
-							assert(IsClause(res));
-							clauses.push_back(res);
-						}
-					}
-				}
-				clauses.push_back({PosLit(v)});
+				//std::cout << "entering removal process wit " << pos.size() << " positive and " << neg.size() << " negative clauses"<< std::endl;
+				if (min(pos.size(), neg.size()) >= 1) {
+                    for (const auto& c1 : pos) {
+                        for (const auto& c2 : neg) {
+                            vector<Lit> res;
+                            bool taut = false;
+                            int j = 0;
+                            for (int i = 0; i < (int)c1.size(); i++) {
+                                while (j < (int)c2.size() && VarOf(c2[j]) < VarOf(c1[i])) {
+                                    res.push_back(c2[j]);
+                                    j++;
+                                    //std::cout << "first while loop: " << j << std::endl;
+
+                                }
+                                if (j < (int)c2.size() && VarOf(c2[j]) == VarOf(c1[i])) {
+                                    if (c2[j] == c1[i]) {
+                                        res.push_back(c1[i]);
+                                        j++;
+                                    } else {
+                                        taut = true;
+                                        break;
+                                    }
+                                } else {
+                                    res.push_back(c1[i]);
+                                }
+                            }
+                            while (j < (int)c2.size() && !taut) {
+                                res.push_back(c2[j]);
+                                j++;
+                                //std::cout << "second while loop: " << j << std::endl;
+
+                            }
+                            if (!taut) {
+                                assert(IsClause(res));
+                                clauses.push_back(res);
+                            }
+                            //std::cout << "for loop" << std::endl;
+
+                        }
+                    }
+                    clauses.push_back({PosLit(v)});
+                    //std::cout << "eliminated variable: " << v << std::endl;
+                    SortAndDedup(clauses);
+
+                }
+                else {
+                    //std::cout << "removed from defined vars: " << v << std::endl;
+                    def[v] = 0;
+                    defs--;
+                    //std::cout << "new def count: " << defs << std::endl;
+                }
 			}
 		}
+		//std::cout << "removed defined variables" << std::endl;
+
+
 		// remove all the learned clauses that contain an eliminated literal
 		for (int i = 0; i < (int)learned_clauses.size(); i++) {
 			bool fo = false;
@@ -685,6 +713,7 @@ bool Preprocessor::EliminateDefSimplicial() {
 		if (!defs) {
 			Tighten();
 			if (found && g_timer.get() < max_g_time) {
+                //std::cout << "going into recursion" << std::endl;
 				EliminateDefSimplicial();
 				return true;
 			} else {
@@ -750,7 +779,7 @@ bool Preprocessor::DoTechniques(const string& techniques, int l, int r) {
 	return fixpoint;
 }
 
-Instance Preprocessor::Preprocess(int vars_, vector<vector<Lit>> clauses_, string techniques) {
+Instance Preprocessor::Preprocess(int vars_, vector<vector<Lit>> clauses_, string techniques, bool idemp_mode_) {
 	if (techniques.empty() || techniques[0] != 'F') {
 		techniques = "F" + techniques;
 	}
@@ -758,6 +787,7 @@ Instance Preprocessor::Preprocess(int vars_, vector<vector<Lit>> clauses_, strin
 	assert(orig_vars == 0);
 	vars = vars_;
 	clauses = clauses_;
+	idemp_mode = idemp_mode_;
 	learned_clauses.clear();
 	timer.start();
 	orig_vars = vars;

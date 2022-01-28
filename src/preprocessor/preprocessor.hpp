@@ -9,10 +9,10 @@ namespace sspp {
 class Preprocessor {
  public:
 	// applies the preprocessing techniques in `techniques` to instance `ins`
- 	Instance Preprocess(Instance ins, const string& techniques);
+ 	Instance Preprocess(Instance ins, const string& techniques, bool idemp_mode_);
 	// checks if `techniques` is a valid string of preprocessing techniques
 	// if so they are applied to the instance given by vars_, clauses_
- 	Instance Preprocess(int vars_, vector<vector<Lit>> clauses_, string techniques);
+ 	Instance Preprocess(int vars_, vector<vector<Lit>> clauses_, string techniques, bool idemp_mode_);
  	// returns the number of variables which are unconstrained
 	int FreeVars() const;
  	void SetMaxGTime(double time);
@@ -66,6 +66,7 @@ class Preprocessor {
  	bool unsat = false;
 
  	bool weighted = false;
+ 	bool idemp_mode = false;
  	vector<vector<double>> weights;
  	int free_vars = 0;
 
