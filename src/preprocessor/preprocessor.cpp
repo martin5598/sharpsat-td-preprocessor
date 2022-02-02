@@ -449,65 +449,71 @@ bool Preprocessor::EliminateDefSimplicial() {
 				}
 			}
 		}
-		// there are no variables left to elminate currently
-		if (simps == 0) {
-			Tighten();
-			Subsume();
-			// if we eliminated some variables we might find more when we try again
-			if (found && g_timer.get() < max_g_time) {
-				EliminateDefSimplicial();
-				return true;
-			} else {
-				g_timer.stop();
-				return false;
-			}
-		}
-		// initialize the oracle that will check whether variables are defined
-		Oracle oracle(vars + 2*simps, {});
-		for (const auto& cls : {clauses, learned_clauses}) {
-			for (const auto& clause : cls) {
-				oracle.AddClause(clause, false);
-				// check if the clause contains a variable that we might want to eliminate
-				bool hs = false;
-				for (Lit lit : clause) {
-					if (extra[VarOf(lit)]) {
-						hs = true;
-					}
-				}
-				// if so add a copy of the clause with the possibly defined variables
-				// replaced by their corresponding extra variables
-				if (hs) {
-					vector<Lit> ac;
-					for (Lit lit : clause) {
-						if (extra[VarOf(lit)]) {
-							ac.push_back(MkLit(extra[VarOf(lit)], IsPos(lit)));
-						} else {
-							ac.push_back(lit);
-						}
-					}
-					SortAndDedup(ac);
-					oracle.AddClause(ac, false);
-				}
-			}
-		}
-		// add clauses that allow us to turn equivalences between the original
-		// variables and the extra variables on and off
-		for (Var v = 1; v <= vars; v++) {
-			if (extra[v]) {
-				oracle.AddClause({PosLit(v), NegLit(extra[v]), NegLit(extra[v]+simps)}, false);
-				oracle.AddClause({NegLit(v), PosLit(extra[v]), NegLit(extra[v]+simps)}, false);
-			}
-		}
-		vector<char> toEliminate(vars+1);
+
+        vector<char> toEliminate(vars+1);
 		int nToEliminate = 0;
-		// iterate over all the variables and check whether they are to be eliminated
-		for (Var v = 1; v <= vars; v++) {
-            if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v]) {
-                if (idemp_mode) {
+
+		if (idemp_mode) {
+            for (Var v = 1; v <= vars; v++) {
+                if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v]) {
                     toEliminate[v] = 1;
                     nToEliminate++;
                 }
-                else if (g_timer.get() < max_g_time) {
+            }
+		}
+		else {
+            // there are no variables left to elminate currently
+            if (simps == 0) {
+                Tighten();
+                Subsume();
+                // if we eliminated some variables we might find more when we try again
+                if (found && g_timer.get() < max_g_time) {
+                    EliminateDefSimplicial();
+                    return true;
+                } else {
+                    g_timer.stop();
+                    return false;
+                }
+            }
+            // initialize the oracle that will check whether variables are defined
+            Oracle oracle(vars + 2*simps, {});
+            for (const auto& cls : {clauses, learned_clauses}) {
+                for (const auto& clause : cls) {
+                    oracle.AddClause(clause, false);
+                    // check if the clause contains a variable that we might want to eliminate
+                    bool hs = false;
+                    for (Lit lit : clause) {
+                        if (extra[VarOf(lit)]) {
+                            hs = true;
+                        }
+                    }
+                    // if so add a copy of the clause with the possibly defined variables
+                    // replaced by their corresponding extra variables
+                    if (hs) {
+                        vector<Lit> ac;
+                        for (Lit lit : clause) {
+                            if (extra[VarOf(lit)]) {
+                                ac.push_back(MkLit(extra[VarOf(lit)], IsPos(lit)));
+                            } else {
+                                ac.push_back(lit);
+                            }
+                        }
+                        SortAndDedup(ac);
+                        oracle.AddClause(ac, false);
+                    }
+                }
+            }
+            // add clauses that allow us to turn equivalences between the original
+            // variables and the extra variables on and off
+            for (Var v = 1; v <= vars; v++) {
+                if (extra[v]) {
+                    oracle.AddClause({PosLit(v), NegLit(extra[v]), NegLit(extra[v]+simps)}, false);
+                    oracle.AddClause({NegLit(v), PosLit(extra[v]), NegLit(extra[v]+simps)}, false);
+                }
+            }
+            // iterate over all the variables and check whether they are to be eliminated
+            for (Var v = 1; v <= vars; v++) {
+                if (weights[PosLit(v)] == weights[NegLit(v)] && extra[v] && g_timer.get() < max_g_time) {
                     vector<Lit> assumps = {PosLit(v), NegLit(extra[v])};
                     // for the other variables that might be defined
                     // but have not yet been shown to be defined
@@ -524,6 +530,7 @@ bool Preprocessor::EliminateDefSimplicial() {
                 }
             }
 		}
+
 		// iterate over all the defined variables
 		for (Var v = 1; v <= vars; v++) {
 			if (toEliminate[v]) {
