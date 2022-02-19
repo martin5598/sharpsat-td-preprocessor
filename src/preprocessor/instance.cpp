@@ -176,11 +176,13 @@ void Instance::Print(std::ostream& out) const {
 		out<<0<<endl;
 	}
     for (int i = 2; i < weights.size(); i++) {
-        out << "c p weight " << (i%2==0?"":"-") << i/2 << " " << weights[i][0];
-        for (int j = 1; j < weights[i].size(); j++) {
-            out << ";" << weights[i][j];
+        if (weights[i].size() > 0) {
+            out << "c p weight " << (i%2==0?"":"-") << i/2 << " " << weights[i][0];
+            for (int j = 1; j < weights[i].size(); j++) {
+                out << ";" << weights[i][j];
+            }
+            out << " 0" << endl;
         }
-        out << " 0" << endl;
     }
 }
 
