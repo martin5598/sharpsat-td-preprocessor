@@ -15,7 +15,7 @@ Instance Preprocessor::UnsatInst() {
 	ins.AddClause({PosLit(1)});
 	if (weighted) {
 		ins.weighted = true;
-		ins.weights = {{0}, {0}, {0.5}, {0.5}};
+		ins.weights = {{"0"}, {"0"}, {"0.5"}, {"0.5"}};
 	}
 	return ins;
 }

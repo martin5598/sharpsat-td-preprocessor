@@ -114,11 +114,11 @@ Instance::Instance(string input_file, bool weighted_) {
 			int dlit = stoi(tokens[3]);
 			assert(dlit != 0);
 			Lit lit = FromDimacs(dlit);
-            vector<double> ws;
+            vector<string> ws;
             std::istringstream ss(tokens[4]);
             string w;
             while(std::getline(ss, w, ';')) {
-                ws.push_back(stod(w));
+                ws.push_back(w);
             }
             weights[lit] = ws;
 

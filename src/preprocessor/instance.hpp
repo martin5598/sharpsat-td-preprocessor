@@ -32,7 +32,7 @@ struct Instance {
 	bool weighted = false;
 	mpfr::mpreal weight_factor = 1;
 
-  vector<vector<double>> weights;
+  vector<vector<string>> weights;
   int total_lits = 0;
  private:
  	Lit RecConstruct(vector<Lit> clause);

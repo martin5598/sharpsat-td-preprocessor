@@ -66,7 +66,7 @@ class Preprocessor {
 
  	bool weighted = false;
  	bool idemp_mode = false;
- 	vector<vector<double>> weights;
+ 	vector<vector<string>> weights;
  	int free_vars = 0;
 
  	double max_g_time = 1e9;
