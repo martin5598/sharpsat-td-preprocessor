@@ -1,4 +1,4 @@
-SharpSAT-TD is a modification of SharpSAT (MIT License, 2019 Marc Thurley).
+Sharpsat-TD Preprocessor is a modification of SharpSAT-TD (2021 Tuukka Korhonen), which is a modification of SharpSAT (MIT License, 2019 Marc Thurley).
 
 See licenses of other components in:
 
@@ -6,7 +6,7 @@ flowcutter/LICENSE
 src/clhash/LICENSE
 
 
-SharpSAT-TD -- Copyright (c) 2021 Tuukka Korhonen
+SharpSAT-TD Preprocessor -- Copyright (c) 2022 Martin Ritter
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
